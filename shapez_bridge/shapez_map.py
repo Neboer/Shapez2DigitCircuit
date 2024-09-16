@@ -24,6 +24,9 @@ class WireFace(IntEnum):
     S = 2
     W = 3
 
+    def opposite(self):
+        return WireFace((self.value + 2) % 4)
+
 
 face_table = {
     ElementType.IWire: [WireFace.N, WireFace.S],
@@ -47,6 +50,15 @@ def wireface_from_vector(point1, point2):
         else:
             return WireFace.E
 
+def wireface_to_vector(face: WireFace):
+    if face == WireFace.N:
+        return (0, -1)
+    elif face == WireFace.E:
+        return (1, 0)
+    elif face == WireFace.S:
+        return (0, 1)
+    elif face == WireFace.W:
+        return (-1, 0)
 
 class MapElement:
     def __init__(self, type=ElementType.EMPTY, rotation=0):
@@ -82,7 +94,7 @@ class Map:
         self.elements = (
             {} if not init_elements else init_elements
         )  # (x, y) -> MapElement
-    
+
     def guard_xy(self, x, y):
         if x < 0 or x >= self.width or y < 0 or y >= self.height:
             raise ValueError("Out of map range.")
@@ -113,10 +125,10 @@ class WirePath:
     def tail(self, n):
         # 取小尾巴
         new_path = self.path[-n:]
-        new_start_face = wireface_from_vector(new_path[-(n + 1)], new_path[-n])
+        new_start_face = wireface_from_vector(self.path[-n], self.path[-(n + 1)])
         return WirePath(new_path, new_start_face, self.end_face)
 
-    def extend(self, direction: WireFace, map_width, map_height) -> bool:
+    def extend(self, direction: WireFace, map: Map) -> bool:
         # 在路径末尾延伸一个点，这个点必须不与自身相交。
         new_end = self.path[-1]
         if direction == WireFace.N:
@@ -127,8 +139,12 @@ class WirePath:
             new_end = (new_end[0], new_end[1] + 1)
         elif direction == WireFace.W:
             new_end = (new_end[0] - 1, new_end[1])
-        if 0 <= new_end[0] < map_width and 0 <= new_end[1] < map_height:
-            if new_end not in self.path:
+        if 0 <= new_end[0] < map.width and 0 <= new_end[1] < map.height:
+            # 新点在地图内，要延伸的新点是空地或者IWire，并且不与自己相交才能延伸，否则此方向被堵住。
+            if map.get_element(new_end[0], new_end[1]).type in (
+                ElementType.EMPTY,
+                ElementType.IWire,
+            ) and new_end not in self.path:
                 self.path.append(new_end)
                 return True
 
