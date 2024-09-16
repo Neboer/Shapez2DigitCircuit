@@ -82,14 +82,20 @@ class Map:
         self.elements = (
             {} if not init_elements else init_elements
         )  # (x, y) -> MapElement
+    
+    def guard_xy(self, x, y):
+        if x < 0 or x >= self.width or y < 0 or y >= self.height:
+            raise ValueError("Out of map range.")
 
     def get_element(self, x, y) -> MapElement:
+        self.guard_xy(x, y)
         if (x, y) in self.elements:
             return self.elements[(x, y)]
         else:
-            return MapElement(x, y)
+            return MapElement()
 
     def set_element(self, x, y, map_element: MapElement):
+        self.guard_xy(x, y)
         self.elements[(x, y)] = map_element
 
     def copy(self):
@@ -151,7 +157,7 @@ def wire_map_from_path(wire_path: WirePath, current_map: Map) -> bool:
             if current_element0.type == ElementType.EMPTY:
                 # 空地，可以直接布线。
                 current_map.set_element(
-                    wire_path.path[0][0], wire_path[0][1], new_element0
+                    wire_path.path[0][0], wire_path.path[0][1], new_element0
                 )
                 return True
             # 否则，当前的线一定是IWire，或许可以在布线的时候改成BridgeWire，不过这要求这两条线的方向必须不同。
