@@ -20,3 +20,6 @@
 | WireDefaultLeftInternalVariant  | ![](./shapes/wires/WireDefaultLeftInternalVariant.svg)| 4 |
 | WireDefaultCrossInternalVariant  | ![](./shapes/wires/WireDefaultCrossInternalVariant.svg)| 1 |
 | WireDefaultBridgeInternalVariant  | ![](./shapes/wires/WireDefaultBridgeInternalVariant.svg)| 2 |
+| WireTransmitter | >----> | 4
+
+

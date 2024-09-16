@@ -1,10 +1,9 @@
 from blueprint_code import get_blueprint_entries_from_shapez_code
 from tabulate import tabulate
 
-if __name__ == "__main__":
-    import pyperclip
 
-    entries = get_blueprint_entries_from_shapez_code(pyperclip.paste())
+def print_blueprint(blueprint_code):
+    entries = get_blueprint_entries_from_shapez_code(blueprint_code)
 
     minimum_x = min([t["X"] for t in entries])
     maximum_x = max([t["X"] for t in entries])
@@ -26,3 +25,10 @@ if __name__ == "__main__":
 
     print(tabulate(block_map, tablefmt="plain"))
     print(tabulate(zip(block_list.keys(), block_list.values()), tablefmt="plain"))
+
+
+if __name__ == "__main__":
+    import pyperclip
+
+    blueprint_code = pyperclip.paste()
+    print_blueprint(blueprint_code)
