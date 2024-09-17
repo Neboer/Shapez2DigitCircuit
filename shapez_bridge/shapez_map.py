@@ -17,6 +17,23 @@ class ElementType(Enum):
     CrossWire = 5
     BridgeWire = 6
 
+    is_wire = lambda x: x in [
+        ElementType.IWire,
+        ElementType.TWire,
+        ElementType.LWire,
+        ElementType.CrossWire,
+        ElementType.BridgeWire,
+    ]
+
+
+element_type_to_entry_type = {
+    ElementType.IWire: "WireDefaultForwardInternalVariant",
+    ElementType.TWire: "WireDefaultJunctionInternalVariant",
+    ElementType.LWire: "WireDefaultLeftInternalVariant",
+    ElementType.CrossWire: "WireDefaultCrossInternalVariant",
+    ElementType.BridgeWire: "WireDefaultBridgeInternalVariant",
+}
+
 
 class WireFace(IntEnum):
     N = 0
@@ -50,6 +67,7 @@ def wireface_from_vector(point1, point2):
         else:
             return WireFace.E
 
+
 def wireface_to_vector(face: WireFace):
     if face == WireFace.N:
         return (0, -1)
@@ -59,6 +77,7 @@ def wireface_to_vector(face: WireFace):
         return (0, 1)
     elif face == WireFace.W:
         return (-1, 0)
+
 
 class MapElement:
     def __init__(self, type=ElementType.EMPTY, rotation=0):
@@ -86,14 +105,20 @@ class MapElement:
             # face1和face2相等，无法找到这样的wireface。
             raise ValueError("Invalid wire faces.")
 
+    def to_shapez_entry(self, x, y):
+        return {
+            "X": x,
+            "Y": y,
+            "R": self.rotation,
+            "T": element_type_to_entry_type[self.type],
+        }
+
 
 class Map:
     def __init__(self, width, height, init_elements=None):
         self.width = width
         self.height = height
-        self.elements = (
-            {} if not init_elements else init_elements
-        )  # (x, y) -> MapElement
+        self.elements = {} if not init_elements else init_elements
 
     def guard_xy(self, x, y):
         if x < 0 or x >= self.width or y < 0 or y >= self.height:
@@ -109,6 +134,13 @@ class Map:
     def set_element(self, x, y, map_element: MapElement):
         self.guard_xy(x, y)
         self.elements[(x, y)] = map_element
+
+    def to_shapez_entries(self):
+        return [
+            e.to_shapez_entry(e_pos[0], e_pos[1])
+            for e_pos, e in self.elements.items()
+            if e.type.is_wire()
+        ]
 
     def copy(self):
         return copy.deepcopy(self)
@@ -141,10 +173,14 @@ class WirePath:
             new_end = (new_end[0] - 1, new_end[1])
         if 0 <= new_end[0] < map.width and 0 <= new_end[1] < map.height:
             # 新点在地图内，要延伸的新点是空地或者IWire，并且不与自己相交才能延伸，否则此方向被堵住。
-            if map.get_element(new_end[0], new_end[1]).type in (
-                ElementType.EMPTY,
-                ElementType.IWire,
-            ) and new_end not in self.path:
+            if (
+                map.get_element(new_end[0], new_end[1]).type
+                in (
+                    ElementType.EMPTY,
+                    ElementType.IWire,
+                )
+                and new_end not in self.path
+            ):
                 self.path.append(new_end)
                 return True
 
@@ -152,44 +188,3 @@ class WirePath:
 
     def copy(self):
         return copy.deepcopy(self)
-
-
-# 终于，从一个路径中更新一个地图，并判断路径是否可以在地图中实现。
-def wire_map_from_path(wire_path: WirePath, current_map: Map) -> bool:
-    if len(wire_path.path) == 1:
-        return True  # 什么也不会改变，因为我们不知道线要走向何方。
-    elif len(wire_path.path) == 2:
-        # 准备确定第一截路径所在区域应该是什么块，先看看那一截有东西吗？
-        current_element0 = current_map.get_element(
-            wire_path.path[0][0], wire_path.path[0][1]
-        )
-        if current_element0.type in (ElementType.EMPTY, ElementType.IWire):
-            # 只有空地或者直线的时候，才有可能在这里布线，否则休想。
-            # 可以确定第一截路径所在区域应该是什么块了。
-            start, end = wire_path.path[0], wire_path.path[1]
-            face1 = wireface_from_vector(start, end)
-            new_element0 = MapElement.from_wirefaces(wire_path.start_face, face1)
-            # 现在看看那里是不是可以布线。
-            if current_element0.type == ElementType.EMPTY:
-                # 空地，可以直接布线。
-                current_map.set_element(
-                    wire_path.path[0][0], wire_path.path[0][1], new_element0
-                )
-                return True
-            # 否则，当前的线一定是IWire，或许可以在布线的时候改成BridgeWire，不过这要求这两条线的方向必须不同。
-            elif current_element0.rotation != new_element0.rotation:
-                current_map.set_element(
-                    wire_path.path[0][0],
-                    wire_path[0][1],
-                    MapElement(ElementType.BridgeWire),
-                )
-                return True
-            else:
-                # 无法在两个走向相同的线上布线。
-                return False
-        else:
-            # 路径冲突，无法布线。
-            return False
-    elif len(wire_path.path) >= 3:
-        # 超过3，直接取小尾巴计算地图更新。
-        return wire_map_from_path(wire_path.tail(2), current_map)

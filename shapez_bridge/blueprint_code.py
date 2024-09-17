@@ -39,11 +39,15 @@ def complete_blueprint_entries(input_blueprint_entries):
         if "Y" not in entry:
             entry["Y"] = 0
 
-
-def translate_entries(input_blueprint_entries):
+def decode_entries_numbers(input_blueprint_entries):
     for entry in input_blueprint_entries:
         if "C" in entry:
             entry["C"] = int.from_bytes(base64.b64decode(entry["C"]), byteorder="big")
+
+def encode_entries_numbers(input_blueprint_entries):
+    for entry in input_blueprint_entries:
+        if "C" in entry:
+            entry["C"] = base64.b64encode(entry["C"].to_bytes(8, byteorder="big")).decode("utf-8")
 
 
 def decode_blueprint(shapez_str):
@@ -57,11 +61,32 @@ def encode_blueprint(input_content):
 def get_blueprint_entries_from_shapez_code(input_string):
     decoded_entries = decode_blueprint(input_string)["BP"]["Entries"]
     complete_blueprint_entries(decoded_entries)
-    translate_entries(decoded_entries)
+    decode_entries_numbers(decoded_entries)
     return decoded_entries
 
+shapez_data = {
+    "V": 1095,
+    "BP": {
+        "$type": "Building",
+        "Icon": {
+            "Data": [
+                "icon:Buildings",
+                None,
+                None,
+                "shape:CuCuCuCu"
+            ]
+        },
+        "Entries": [],
+        "BinaryVersion": 1095
+    }
+}
+
+def get_shapez_code_from_blueprint_entries(input_entries):
+    shapez_data["BP"]["Entries"] = input_entries
+    return encode_blueprint(shapez_data)
 
 if __name__ == "__main__":
     import pyperclip
 
-    print(get_blueprint_entries_from_shapez_code(pyperclip.paste()))
+    with open("../samples/blueprint.json", "w") as f:
+        json.dump(decode_blueprint(pyperclip.paste()), f)
